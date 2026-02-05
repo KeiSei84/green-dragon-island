@@ -1,0 +1,19 @@
+{
+    "name": "green-dragon-island",
+    "version": "1.0.0",
+    "description": "Green Dragon Island - Bali platformer game dedicated to green-dragon.id",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "tsx": "^4.21.0",
+        "typescript": "~5.7.2",
+        "vite": "^6.3.1"
+    },
+    "dependencies": {
+        "nostalgist": "^0.20.2",
+        "phaser": "^3.90.0"
+    }
+}
