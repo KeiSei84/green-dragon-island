@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { VirtualGamepad } from '../utils/VirtualGamepad';
 
 export class MainMenu extends Scene {
     constructor() {
@@ -75,8 +76,11 @@ export class MainMenu extends Scene {
             strokeThickness: 2
         }).setOrigin(0.5);
 
+        // Hide gamepad on menu
+        VirtualGamepad.getInstance().hide();
+
         // Start button
-        const startText = this.add.text(400, 520, '[ PRESS SPACE TO START ]', {
+        const startText = this.add.text(400, 520, '[ TAP or SPACE TO START ]', {
             fontFamily: 'Arial',
             fontSize: '24px',
             color: '#ffffff',
@@ -111,7 +115,7 @@ export class MainMenu extends Scene {
         });
 
         // SNES Emulator mode button
-        const snesBtn = this.add.text(400, 490, '[ E — SNES Classic Mode (load ROM) ]', {
+        this.add.text(400, 490, '[ E — SNES Classic Mode (load ROM) ]', {
             fontFamily: 'Arial',
             fontSize: '13px',
             color: '#8888ff',
@@ -119,13 +123,20 @@ export class MainMenu extends Scene {
             strokeThickness: 2
         }).setOrigin(0.5);
 
-        // Input
+        // Input — keyboard
         this.input.keyboard!.once('keydown-SPACE', () => {
+            VirtualGamepad.getInstance().show();
             this.scene.start('Level1');
         });
 
         this.input.keyboard!.once('keydown-E', () => {
             this.scene.start('EmulatorMode');
+        });
+
+        // Input — touch (tap anywhere to start)
+        this.input.once('pointerdown', () => {
+            VirtualGamepad.getInstance().show();
+            this.scene.start('Level1');
         });
     }
 }

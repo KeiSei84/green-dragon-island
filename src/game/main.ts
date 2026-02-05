@@ -14,6 +14,13 @@ const config: Types.Core.GameConfig = {
     parent: 'game-container',
     backgroundColor: '#87CEEB',
     pixelArt: true,
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    input: {
+        activePointers: 4,
+    },
     physics: {
         default: 'arcade',
         arcade: {

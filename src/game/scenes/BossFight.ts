@@ -1,4 +1,7 @@
-import { Scene, Physics, GameObjects } from 'phaser';
+import { Scene, Physics, GameObjects, Types } from 'phaser';
+import { VirtualGamepad } from '../utils/VirtualGamepad';
+
+type ArcadeObject = Types.Physics.Arcade.GameObjectWithBody | Physics.Arcade.Body | Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile;
 
 /**
  * BOSS: Andre Frey — The Scammer of Ubud
@@ -16,6 +19,11 @@ import { Scene, Physics, GameObjects } from 'phaser';
 const ARENA_WIDTH = 800;
 const ARENA_HEIGHT = 600;
 const BOSS_HP = 15;
+const PLAYER_SPEED = 220;
+const JUMP_VELOCITY = -480;
+const FLUTTER_VELOCITY = -320;
+const FIREBALL_SPEED = 500;
+const FIRE_COOLDOWN = 350;
 
 export class BossFight extends Scene {
     private dragon!: Physics.Arcade.Sprite;
@@ -56,6 +64,9 @@ export class BossFight extends Scene {
         this.bossPhase = 1;
         this.invulnerable = false;
         this.bossInvulnerable = false;
+        this.hearts = [];
+        this.lastFireTime = 0;
+        this.lastBossAttack = 0;
 
         // Arena background — DALL-E generated PARQ Ubud night scene
         this.cameras.main.setBackgroundColor('#0a0a1a');
@@ -241,7 +252,7 @@ export class BossFight extends Scene {
         }
     }
 
-    private fireballHitBoss(bossObj: any, fireballObj: any): void {
+    private fireballHitBoss(fireballObj: ArcadeObject, bossObj: ArcadeObject): void {
         if (this.bossInvulnerable) return;
 
         const fireball = fireballObj as Physics.Arcade.Sprite;
@@ -300,12 +311,16 @@ export class BossFight extends Scene {
         }
     }
 
-    private projectileHitPlayer(playerObj: any, projObj: any): void {
+    private projectileHitPlayer(playerObj: ArcadeObject, projObj: ArcadeObject): void {
         if (this.invulnerable) return;
 
         const proj = projObj as Physics.Arcade.Sprite;
         proj.destroy();
 
+        this.damagePlayer();
+    }
+
+    private damagePlayer(): void {
         this.playerHealth--;
         this.registry.set('health', this.playerHealth);
         this.updateHearts();
@@ -335,7 +350,7 @@ export class BossFight extends Scene {
         });
     }
 
-    private touchBoss(_player: any, _boss: any): void {
+    private touchBoss(_player: ArcadeObject, _boss: ArcadeObject): void {
         if (this.invulnerable) return;
 
         const body = this.dragon.body as Phaser.Physics.Arcade.Body;
@@ -381,7 +396,7 @@ export class BossFight extends Scene {
         }
 
         // Side/bottom collision → player takes damage
-        this.projectileHitPlayer(_player, { destroy: () => {} });
+        this.damagePlayer();
     }
 
     private showBossDialogue(text: string): void {
@@ -532,7 +547,7 @@ export class BossFight extends Scene {
 
     private shootFireball(): void {
         const now = this.time.now;
-        if (now - this.lastFireTime < 350) return;
+        if (now - this.lastFireTime < FIRE_COOLDOWN) return;
         this.lastFireTime = now;
 
         const dir = this.facingRight ? 1 : -1;
@@ -542,7 +557,7 @@ export class BossFight extends Scene {
         const fb = this.fireballs.create(x, y, 'fireball') as Physics.Arcade.Sprite;
         if (!fb) return;
 
-        fb.setVelocityX(500 * dir);
+        fb.setVelocityX(FIREBALL_SPEED * dir);
         fb.setSize(12, 12);
 
         this.time.delayedCall(2000, () => {
@@ -553,17 +568,23 @@ export class BossFight extends Scene {
     update() {
         if (this.bossHealth <= 0) return;
 
+        const gp = VirtualGamepad.getInstance();
+        gp.tick();
+
         const body = this.dragon.body as Physics.Arcade.Body;
         const onGround = body.blocked.down;
 
+        const kbJumpJust = Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
+            Phaser.Input.Keyboard.JustDown(this.cursors.up!);
+
         // Player controls
-        if (this.cursors.left.isDown) {
-            this.dragon.setVelocityX(-220);
+        if (this.cursors.left.isDown || gp.state.left) {
+            this.dragon.setVelocityX(-PLAYER_SPEED);
             this.dragon.setFlipX(true);
             this.facingRight = false;
             this.dragon.play('dragon-walk', true);
-        } else if (this.cursors.right.isDown) {
-            this.dragon.setVelocityX(220);
+        } else if (this.cursors.right.isDown || gp.state.right) {
+            this.dragon.setVelocityX(PLAYER_SPEED);
             this.dragon.setFlipX(false);
             this.facingRight = true;
             this.dragon.play('dragon-walk', true);
@@ -575,19 +596,16 @@ export class BossFight extends Scene {
         // Jump + flutter
         if (onGround) {
             this.canFlutter = true;
-            if (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-                Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
-                this.dragon.setVelocityY(-480);
+            if (kbJumpJust || gp.state.jumpJustDown) {
+                this.dragon.setVelocityY(JUMP_VELOCITY);
             }
-        } else if (this.canFlutter &&
-            (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-             Phaser.Input.Keyboard.JustDown(this.cursors.up!))) {
-            this.dragon.setVelocityY(-320);
+        } else if (this.canFlutter && (kbJumpJust || gp.state.jumpJustDown)) {
+            this.dragon.setVelocityY(FLUTTER_VELOCITY);
             this.canFlutter = false;
         }
 
         // Fire
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+        if (Phaser.Input.Keyboard.JustDown(this.fireKey) || gp.state.fireJustDown) {
             this.shootFireball();
         }
 

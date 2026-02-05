@@ -200,14 +200,20 @@ async function generateSprite(sprite: SpriteRequest): Promise<void> {
     console.log(`[OK]   ${sprite.name} → ${outPath}`);
 }
 
-function downloadFile(url: string, dest: string): Promise<void> {
+function downloadFile(url: string, dest: string, maxRedirects = 5): Promise<void> {
     return new Promise((resolve, reject) => {
+        if (maxRedirects <= 0) {
+            reject(new Error('Too many redirects'));
+            return;
+        }
         const file = fs.createWriteStream(dest);
         https.get(url, (response) => {
             if (response.statusCode === 301 || response.statusCode === 302) {
+                file.close();
+                fs.unlink(dest, () => {});
                 const redirectUrl = response.headers.location;
                 if (redirectUrl) {
-                    downloadFile(redirectUrl, dest).then(resolve).catch(reject);
+                    downloadFile(redirectUrl, dest, maxRedirects - 1).then(resolve).catch(reject);
                     return;
                 }
             }

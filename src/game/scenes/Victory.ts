@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { VirtualGamepad } from '../utils/VirtualGamepad';
 
 export class Victory extends Scene {
     constructor() {
@@ -6,6 +7,7 @@ export class Victory extends Scene {
     }
 
     create() {
+        VirtualGamepad.getInstance().hide();
         this.cameras.main.setBackgroundColor('#0a2a0a');
 
         if (this.textures.exists('bg_rice_terraces')) {
@@ -71,6 +73,15 @@ export class Victory extends Scene {
         this.input.keyboard!.once('keydown-SPACE', () => {
             this.registry.set('score', 0);
             this.registry.set('health', 3);
+            VirtualGamepad.getInstance().show();
+            this.scene.start('Level1');
+        });
+
+        // Touch — tap to play again
+        this.input.once('pointerdown', () => {
+            this.registry.set('score', 0);
+            this.registry.set('health', 3);
+            VirtualGamepad.getInstance().show();
             this.scene.start('Level1');
         });
     }

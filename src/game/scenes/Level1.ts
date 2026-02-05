@@ -1,8 +1,10 @@
 import { Scene, Physics, GameObjects, Types } from 'phaser';
+import { VirtualGamepad } from '../utils/VirtualGamepad';
+
+type ArcadeObject = Types.Physics.Arcade.GameObjectWithBody | Physics.Arcade.Body | Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile;
 
 const LEVEL_WIDTH = 6400;
 const LEVEL_HEIGHT = 600;
-const GRAVITY = 900;
 const PLAYER_SPEED = 220;
 const JUMP_VELOCITY = -480;
 const FLUTTER_VELOCITY = -320;
@@ -41,6 +43,9 @@ export class Level1 extends Scene {
     create() {
         this.score = this.registry.get('score') || 0;
         this.health = this.registry.get('health') || 3;
+        this.hearts = [];
+        this.invulnerable = false;
+        this.lastFireTime = 0;
 
         // Physics bounds
         this.physics.world.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
@@ -136,9 +141,8 @@ export class Level1 extends Scene {
             if (!isGap) {
                 const tile = this.add.image(x + 16, LEVEL_HEIGHT - 16, 'ground');
                 this.platforms.add(tile);
-                // Second layer of ground
-                const tile2 = this.add.image(x + 16, LEVEL_HEIGHT - 48, 'ground');
-                // Don't add to physics, just visual depth
+                // Second layer of ground (visual depth only, no physics)
+                this.add.image(x + 16, LEVEL_HEIGHT - 48, 'ground');
             }
         }
 
@@ -269,9 +273,10 @@ export class Level1 extends Scene {
     private generateCoinArc(startX: number, baseY: number, count: number): { x: number; y: number }[] {
         const result: { x: number; y: number }[] = [];
         for (let i = 0; i < count; i++) {
+            const t = count <= 1 ? 0 : i / (count - 1);
             result.push({
                 x: startX + i * 30,
-                y: baseY - Math.sin((i / (count - 1)) * Math.PI) * 40
+                y: baseY - Math.sin(t * Math.PI) * 40
             });
         }
         return result;
@@ -373,7 +378,7 @@ export class Level1 extends Scene {
         }
     }
 
-    private collectCoin(_player: any, coinObj: any): void {
+    private collectCoin(_player: ArcadeObject, coinObj: ArcadeObject): void {
         const coin = coinObj as Physics.Arcade.Sprite;
         coin.destroy();
         this.score++;
@@ -394,7 +399,7 @@ export class Level1 extends Scene {
         }
     }
 
-    private hitEnemy(_player: any, _enemy: any): void {
+    private hitEnemy(_player: ArcadeObject, _enemy: ArcadeObject): void {
         if (this.invulnerable) return;
 
         const enemy = _enemy as Physics.Arcade.Sprite;
@@ -412,6 +417,7 @@ export class Level1 extends Scene {
         this.updateHearts();
 
         if (this.health <= 0) {
+            this.registry.set('score', this.score);
             this.scene.start('GameOver');
             return;
         }
@@ -469,7 +475,7 @@ export class Level1 extends Scene {
         }
     }
 
-    private fireballHitEnemy(fireballObj: any, enemyObj: any): void {
+    private fireballHitEnemy(fireballObj: ArcadeObject, enemyObj: ArcadeObject): void {
         const fireball = fireballObj as Physics.Arcade.Sprite;
         const enemy = enemyObj as Physics.Arcade.Sprite;
 
@@ -529,16 +535,22 @@ export class Level1 extends Scene {
     }
 
     update(_time: number, _delta: number) {
+        const gp = VirtualGamepad.getInstance();
+        gp.tick();
+
         const body = this.dragon.sprite.body as Physics.Arcade.Body;
         const onGround = body.blocked.down;
 
+        const kbJumpJust = Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
+            Phaser.Input.Keyboard.JustDown(this.cursors.up!);
+
         // Horizontal movement
-        if (this.cursors.left.isDown) {
+        if (this.cursors.left.isDown || gp.state.left) {
             this.dragon.sprite.setVelocityX(-PLAYER_SPEED);
             this.dragon.sprite.setFlipX(true);
             this.dragon.facingRight = false;
             this.dragon.sprite.play('dragon-walk', true);
-        } else if (this.cursors.right.isDown) {
+        } else if (this.cursors.right.isDown || gp.state.right) {
             this.dragon.sprite.setVelocityX(PLAYER_SPEED);
             this.dragon.sprite.setFlipX(false);
             this.dragon.facingRight = true;
@@ -553,15 +565,12 @@ export class Level1 extends Scene {
             this.dragon.canFlutter = true;
             this.dragon.isFluttering = false;
 
-            if (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-                Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+            if (kbJumpJust || gp.state.jumpJustDown) {
                 this.dragon.sprite.setVelocityY(JUMP_VELOCITY);
             }
         } else {
             // Flutter jump (double jump / hold for float)
-            if (this.dragon.canFlutter &&
-                (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-                 Phaser.Input.Keyboard.JustDown(this.cursors.up!))) {
+            if (this.dragon.canFlutter && (kbJumpJust || gp.state.jumpJustDown)) {
                 this.dragon.sprite.setVelocityY(FLUTTER_VELOCITY);
                 this.dragon.canFlutter = false;
                 this.dragon.isFluttering = true;
@@ -586,7 +595,7 @@ export class Level1 extends Scene {
         }
 
         // Fire breath
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+        if (Phaser.Input.Keyboard.JustDown(this.fireKey) || gp.state.fireJustDown) {
             this.shootFireball();
         }
 
@@ -634,10 +643,11 @@ export class Level1 extends Scene {
             return true;
         });
 
-        // Fall into pit = lose health
+        // Fall into pit = instant death
         if (this.dragon.sprite.y > LEVEL_HEIGHT - 10) {
             this.health = 0;
             this.registry.set('health', 0);
+            this.registry.set('score', this.score);
             this.scene.start('GameOver');
         }
 
