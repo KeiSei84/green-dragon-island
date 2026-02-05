@@ -1,4 +1,5 @@
 import { Scene, Physics, GameObjects, Types } from 'phaser';
+import { VirtualGamepad } from '../utils/VirtualGamepad';
 
 type ArcadeObject = Types.Physics.Arcade.GameObjectWithBody | Physics.Arcade.Body | Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile;
 
@@ -567,16 +568,22 @@ export class BossFight extends Scene {
     update() {
         if (this.bossHealth <= 0) return;
 
+        const gp = VirtualGamepad.getInstance();
+        gp.tick();
+
         const body = this.dragon.body as Physics.Arcade.Body;
         const onGround = body.blocked.down;
 
+        const kbJumpJust = Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
+            Phaser.Input.Keyboard.JustDown(this.cursors.up!);
+
         // Player controls
-        if (this.cursors.left.isDown) {
+        if (this.cursors.left.isDown || gp.state.left) {
             this.dragon.setVelocityX(-PLAYER_SPEED);
             this.dragon.setFlipX(true);
             this.facingRight = false;
             this.dragon.play('dragon-walk', true);
-        } else if (this.cursors.right.isDown) {
+        } else if (this.cursors.right.isDown || gp.state.right) {
             this.dragon.setVelocityX(PLAYER_SPEED);
             this.dragon.setFlipX(false);
             this.facingRight = true;
@@ -589,19 +596,16 @@ export class BossFight extends Scene {
         // Jump + flutter
         if (onGround) {
             this.canFlutter = true;
-            if (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-                Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+            if (kbJumpJust || gp.state.jumpJustDown) {
                 this.dragon.setVelocityY(JUMP_VELOCITY);
             }
-        } else if (this.canFlutter &&
-            (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-             Phaser.Input.Keyboard.JustDown(this.cursors.up!))) {
+        } else if (this.canFlutter && (kbJumpJust || gp.state.jumpJustDown)) {
             this.dragon.setVelocityY(FLUTTER_VELOCITY);
             this.canFlutter = false;
         }
 
         // Fire
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+        if (Phaser.Input.Keyboard.JustDown(this.fireKey) || gp.state.fireJustDown) {
             this.shootFireball();
         }
 

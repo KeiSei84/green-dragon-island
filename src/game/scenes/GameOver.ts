@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { VirtualGamepad } from '../utils/VirtualGamepad';
 
 export class GameOver extends Scene {
     constructor() {
@@ -6,6 +7,7 @@ export class GameOver extends Scene {
     }
 
     create() {
+        VirtualGamepad.getInstance().hide();
         this.cameras.main.setBackgroundColor('#1a0000');
 
         this.add.text(400, 150, 'GAME OVER', {
@@ -60,6 +62,7 @@ export class GameOver extends Scene {
         this.input.keyboard!.once('keydown-SPACE', () => {
             this.registry.set('score', 0);
             this.registry.set('health', 3);
+            VirtualGamepad.getInstance().show();
             this.scene.start('Level1');
         });
 
@@ -67,6 +70,14 @@ export class GameOver extends Scene {
             this.registry.set('score', 0);
             this.registry.set('health', 3);
             this.scene.start('MainMenu');
+        });
+
+        // Touch — tap to retry
+        this.input.once('pointerdown', () => {
+            this.registry.set('score', 0);
+            this.registry.set('health', 3);
+            VirtualGamepad.getInstance().show();
+            this.scene.start('Level1');
         });
     }
 }

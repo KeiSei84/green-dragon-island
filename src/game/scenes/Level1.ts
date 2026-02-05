@@ -1,4 +1,5 @@
 import { Scene, Physics, GameObjects, Types } from 'phaser';
+import { VirtualGamepad } from '../utils/VirtualGamepad';
 
 type ArcadeObject = Types.Physics.Arcade.GameObjectWithBody | Physics.Arcade.Body | Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile;
 
@@ -534,16 +535,22 @@ export class Level1 extends Scene {
     }
 
     update(_time: number, _delta: number) {
+        const gp = VirtualGamepad.getInstance();
+        gp.tick();
+
         const body = this.dragon.sprite.body as Physics.Arcade.Body;
         const onGround = body.blocked.down;
 
+        const kbJumpJust = Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
+            Phaser.Input.Keyboard.JustDown(this.cursors.up!);
+
         // Horizontal movement
-        if (this.cursors.left.isDown) {
+        if (this.cursors.left.isDown || gp.state.left) {
             this.dragon.sprite.setVelocityX(-PLAYER_SPEED);
             this.dragon.sprite.setFlipX(true);
             this.dragon.facingRight = false;
             this.dragon.sprite.play('dragon-walk', true);
-        } else if (this.cursors.right.isDown) {
+        } else if (this.cursors.right.isDown || gp.state.right) {
             this.dragon.sprite.setVelocityX(PLAYER_SPEED);
             this.dragon.sprite.setFlipX(false);
             this.dragon.facingRight = true;
@@ -558,15 +565,12 @@ export class Level1 extends Scene {
             this.dragon.canFlutter = true;
             this.dragon.isFluttering = false;
 
-            if (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-                Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+            if (kbJumpJust || gp.state.jumpJustDown) {
                 this.dragon.sprite.setVelocityY(JUMP_VELOCITY);
             }
         } else {
             // Flutter jump (double jump / hold for float)
-            if (this.dragon.canFlutter &&
-                (Phaser.Input.Keyboard.JustDown(this.cursors.space!) ||
-                 Phaser.Input.Keyboard.JustDown(this.cursors.up!))) {
+            if (this.dragon.canFlutter && (kbJumpJust || gp.state.jumpJustDown)) {
                 this.dragon.sprite.setVelocityY(FLUTTER_VELOCITY);
                 this.dragon.canFlutter = false;
                 this.dragon.isFluttering = true;
@@ -591,7 +595,7 @@ export class Level1 extends Scene {
         }
 
         // Fire breath
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+        if (Phaser.Input.Keyboard.JustDown(this.fireKey) || gp.state.fireJustDown) {
             this.shootFireball();
         }
 
