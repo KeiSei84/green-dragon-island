@@ -111,7 +111,7 @@ export class MainMenu extends Scene {
         });
 
         // SNES Emulator mode button
-        const snesBtn = this.add.text(400, 490, '[ E — SNES Classic Mode (load ROM) ]', {
+        this.add.text(400, 490, '[ E — SNES Classic Mode (load ROM) ]', {
             fontFamily: 'Arial',
             fontSize: '13px',
             color: '#8888ff',

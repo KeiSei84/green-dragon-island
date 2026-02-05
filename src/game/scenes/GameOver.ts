@@ -51,7 +51,7 @@ export class GameOver extends Scene {
             repeat: -1
         });
 
-        const menu = this.add.text(400, 490, '[ M — Main Menu ]', {
+        this.add.text(400, 490, '[ M — Main Menu ]', {
             fontFamily: 'Arial',
             fontSize: '16px',
             color: '#888888'

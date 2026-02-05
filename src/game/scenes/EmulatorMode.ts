@@ -9,6 +9,11 @@ import { Nostalgist } from 'nostalgist';
 export class EmulatorMode extends Scene {
     private nostalgist: any = null;
     private romLoaded = false;
+    private fileInput: HTMLInputElement | null = null;
+    private clickHandler: (() => void) | null = null;
+    private dragOverHandler: ((e: DragEvent) => void) | null = null;
+    private dragLeaveHandler: (() => void) | null = null;
+    private dropHandler: ((e: DragEvent) => void) | null = null;
 
     constructor() {
         super('EmulatorMode');
@@ -51,7 +56,7 @@ export class EmulatorMode extends Scene {
         const dropZone = this.add.rectangle(400, 320, 400, 150, 0x1a2a1a, 0.5);
         dropZone.setStrokeStyle(2, 0x2d8b46);
 
-        this.add.text(400, 320, '📁 Click or Drag & Drop .sfc / .smc ROM', {
+        this.add.text(400, 320, '\u{1F4C1} Click or Drag & Drop .sfc / .smc ROM', {
             fontFamily: 'Arial',
             fontSize: '16px',
             color: '#2d8b46'
@@ -65,7 +70,7 @@ export class EmulatorMode extends Scene {
         }).setOrigin(0.5);
 
         // Back button
-        this.add.text(400, 560, '[ ESC — Back to Menu ]', {
+        this.add.text(400, 560, '[ ESC \u2014 Back to Menu ]', {
             fontFamily: 'Arial',
             fontSize: '14px',
             color: '#666666'
@@ -85,17 +90,20 @@ export class EmulatorMode extends Scene {
         const canvas = this.game.canvas;
 
         // Click on canvas to open file picker
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.sfc,.smc,.zip';
-        fileInput.style.display = 'none';
-        document.body.appendChild(fileInput);
+        this.fileInput = document.createElement('input');
+        this.fileInput.type = 'file';
+        this.fileInput.accept = '.sfc,.smc,.zip';
+        this.fileInput.style.display = 'none';
+        document.body.appendChild(this.fileInput);
 
-        canvas.addEventListener('click', () => {
+        const fileInput = this.fileInput;
+
+        this.clickHandler = () => {
             if (!this.romLoaded) {
                 fileInput.click();
             }
-        });
+        };
+        canvas.addEventListener('click', this.clickHandler);
 
         fileInput.addEventListener('change', async (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
@@ -109,16 +117,16 @@ export class EmulatorMode extends Scene {
     private createDragDrop(statusText: Phaser.GameObjects.Text): void {
         const canvas = this.game.canvas;
 
-        canvas.addEventListener('dragover', (e) => {
+        this.dragOverHandler = (e: DragEvent) => {
             e.preventDefault();
             canvas.style.border = '3px solid #2d8b46';
-        });
+        };
 
-        canvas.addEventListener('dragleave', () => {
+        this.dragLeaveHandler = () => {
             canvas.style.border = 'none';
-        });
+        };
 
-        canvas.addEventListener('drop', async (e) => {
+        this.dropHandler = async (e: DragEvent) => {
             e.preventDefault();
             canvas.style.border = 'none';
 
@@ -127,7 +135,11 @@ export class EmulatorMode extends Scene {
                 statusText.setText('Loading ROM...');
                 await this.loadROM(file, statusText);
             }
-        });
+        };
+
+        canvas.addEventListener('dragover', this.dragOverHandler);
+        canvas.addEventListener('dragleave', this.dragLeaveHandler);
+        canvas.addEventListener('drop', this.dropHandler);
     }
 
     private async loadROM(file: File, statusText: Phaser.GameObjects.Text): Promise<void> {
@@ -277,5 +289,40 @@ export class EmulatorMode extends Scene {
         }
 
         this.romLoaded = false;
+    }
+
+    private removeDOMListeners(): void {
+        const canvas = this.game.canvas;
+
+        if (this.clickHandler) {
+            canvas.removeEventListener('click', this.clickHandler);
+            this.clickHandler = null;
+        }
+        if (this.dragOverHandler) {
+            canvas.removeEventListener('dragover', this.dragOverHandler);
+            this.dragOverHandler = null;
+        }
+        if (this.dragLeaveHandler) {
+            canvas.removeEventListener('dragleave', this.dragLeaveHandler);
+            this.dragLeaveHandler = null;
+        }
+        if (this.dropHandler) {
+            canvas.removeEventListener('drop', this.dropHandler);
+            this.dropHandler = null;
+        }
+        if (this.fileInput) {
+            this.fileInput.remove();
+            this.fileInput = null;
+        }
+    }
+
+    shutdown(): void {
+        this.removeDOMListeners();
+        this.cleanupEmulator();
+    }
+
+    destroy(): void {
+        this.removeDOMListeners();
+        this.cleanupEmulator();
     }
 }
